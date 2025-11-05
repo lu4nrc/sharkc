@@ -2,6 +2,7 @@ import { getIO } from "../../libs/socket";
 import Contact from "../../models/Contact";
 import ContactCustomField from "../../models/ContactCustomField";
 import { isNil } from "lodash";
+import { Op } from "sequelize"; // ? NOVO IMPORT
 interface ExtraInfo extends ContactCustomField {
   name: string;
   value: string;
@@ -16,6 +17,7 @@ interface Request {
   companyId: number;
   extraInfo?: ExtraInfo[];
   whatsappId?: number;
+  lid?: string; // ? NOVO CAMPO
 }
 
 const CreateOrUpdateContactService = async ({
@@ -26,7 +28,8 @@ const CreateOrUpdateContactService = async ({
   email = "",
   companyId,
   extraInfo = [],
-  whatsappId
+  whatsappId,
+  lid // ? NOVO PARÂMETRO
 }: Request): Promise<Contact> => {
   const number = isGroup ? rawNumber : rawNumber.replace(/[^0-9]/g, "");
 
@@ -35,23 +38,25 @@ const CreateOrUpdateContactService = async ({
 
   contact = await Contact.findOne({
     where: {
-      number,
-      companyId
+      [Op.or]: [{ number, companyId }, ...(lid ? [{ lid, companyId }] : [])]
     }
   });
 
   if (contact) {
     contact.update({ profilePicUrl });
-    console.log(contact.whatsappId)
+    console.log(contact.whatsappId);
     if (isNil(contact.whatsappId === null)) {
       contact.update({
         whatsappId
       });
     }
-    io.to(`company-${companyId}-mainchannel`).emit(`company-${companyId}-contact`, {
-      action: "update",
-      contact
-    });
+    io.to(`company-${companyId}-mainchannel`).emit(
+      `company-${companyId}-contact`,
+      {
+        action: "update",
+        contact
+      }
+    );
   } else {
     contact = await Contact.create({
       name,
@@ -61,13 +66,17 @@ const CreateOrUpdateContactService = async ({
       isGroup,
       extraInfo,
       companyId,
-      whatsappId
+      whatsappId,
+      lid // ? NOVO CAMPO
     });
 
-    io.to(`company-${companyId}-mainchannel`).emit(`company-${companyId}-contact`, {
-      action: "create",
-      contact
-    });
+    io.to(`company-${companyId}-mainchannel`).emit(
+      `company-${companyId}-contact`,
+      {
+        action: "create",
+        contact
+      }
+    );
   }
 
   return contact;
