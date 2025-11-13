@@ -73,7 +73,7 @@ export const getContact = async (
 export const store = async (req: Request, res: Response): Promise<Response> => {
   const { companyId } = req.user;
   const newContact: ContactData = req.body;
-  newContact.number = newContact.number.replace(/\D/g, '');
+  newContact.number = newContact.number.replace(/\D/g, "");
 
   const schema = Yup.object().shape({
     name: Yup.string().required(),
@@ -82,14 +82,16 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
       .matches(/^\d+$/, "Invalid number format. Only numbers is allowed.")
   });
 
-  const contact = await createNewContact(newContact,companyId,schema);
+  const contact = await createNewContact(newContact, companyId, schema);
 
   return res.status(200).json(contact);
 };
 
-export const storeUpload = async (req: Request, res: Response) : Promise<Response> => {
-
-  const {companyId} = req.user;
+export const storeUpload = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  const { companyId } = req.user;
   const contacts = req.body;
 
   let errorBag = [];
@@ -101,24 +103,31 @@ export const storeUpload = async (req: Request, res: Response) : Promise<Respons
   });
 
   const promises = contacts.map(async contact => {
-    if(!contact.Nome || !contact.Telefone) return;
+    if (!contact.Nome || !contact.Telefone) return;
 
-    const newContact : ContactData = {name: contact.Nome, number: String(contact.Telefone).replace(/\D/g, '')}
+    const newContact: ContactData = {
+      name: contact.Nome,
+      number: String(contact.Telefone).replace(/\D/g, "")
+    };
 
-    try{
-
-      const contact = await createUploadedContact( newContact, companyId, schema )
-      contactAdded.push( {contactName: contact.name, contactId: contact.id} );
-
-    }catch(e){
-      errorBag.push({contactName: contact.Nome, error: e || e.message});
+    try {
+      const contact = await createUploadedContact(
+        newContact,
+        companyId,
+        schema
+      );
+      contactAdded.push({ contactName: contact.name, contactId: contact.id });
+    } catch (e) {
+      errorBag.push({ contactName: contact.Nome, error: e || e.message });
     }
   });
 
   await Promise.all(promises);
 
-  return res.status(200).json({newContacts: contactAdded, errorBag: errorBag});
-}
+  return res
+    .status(200)
+    .json({ newContacts: contactAdded, errorBag: errorBag });
+};
 
 export const show = async (req: Request, res: Response): Promise<Response> => {
   const { contactId } = req.params;
@@ -136,7 +145,7 @@ export const update = async (
   const contactData: ContactData = req.body;
   const { companyId } = req.user;
 
-  contactData.number = contactData.number.replace(/\D/g, '');
+  contactData.number = contactData.number.replace(/\D/g, "");
 
   const schema = Yup.object().shape({
     name: Yup.string(),
@@ -168,10 +177,13 @@ export const update = async (
   });
 
   const io = getIO();
-  io.to(`company-${companyId}-mainchannel`).emit(`company-${companyId}-contact`, {
-    action: "update",
-    contact
-  });
+  io.to(`company-${companyId}-mainchannel`).emit(
+    `company-${companyId}-contact`,
+    {
+      action: "update",
+      contact
+    }
+  );
 
   return res.status(200).json(contact);
 };
@@ -188,10 +200,13 @@ export const remove = async (
   await DeleteContactService(contactId);
 
   const io = getIO();
-  io.to(`company-${companyId}-mainchannel`).emit(`company-${companyId}-contact`, {
-    action: "delete",
-    contactId
-  });
+  io.to(`company-${companyId}-mainchannel`).emit(
+    `company-${companyId}-contact`,
+    {
+      action: "delete",
+      contactId
+    }
+  );
 
   return res.status(200).json({ message: "Contact deleted" });
 };
@@ -205,50 +220,61 @@ export const list = async (req: Request, res: Response): Promise<Response> => {
   return res.json(contacts);
 };
 
-const createNewContact = async ( newContact : ContactData, companyId : number, schema : any ) => {
+const createNewContact = async (
+  newContact: ContactData,
+  companyId: number,
+  schema: any
+) => {
+  try {
+    await schema.validate(newContact);
+  } catch (err: any) {
+    throw new AppError(err.message);
+  }
 
-    try{
-      await schema.validate(newContact);
-    }catch(err:any){
-      throw new AppError(err.message);
-    }
+  logger.info(newContact);
 
-    logger.info(newContact);
+  await CheckIsValidContact(newContact.number, companyId);
+  const number = newContact.number.replace(/\D/g, "");
+  const validNumber = await CheckContactNumber(number, companyId);
 
-    await CheckIsValidContact(newContact.number, companyId);
-    const number = newContact.number.replace(/\D/g, "");
-    const validNumber = await CheckContactNumber(number, companyId);
+  if (!validNumber)
+    throw new AppError(
+      "Não foi possível localizar o número informado no Whatsapp"
+    );
 
-    if( !validNumber )
-      throw new AppError("Não foi possível localizar o número informado no Whatsapp");
+  newContact.number = number;
 
-    newContact.number = number;
+  /**
+   * Código desabilitado por demora no retorno
+   */
+  // const profilePicUrl = await GetProfilePicUrl(validNumber.jid, companyId);
 
-    /**
-     * Código desabilitado por demora no retorno
-     */
-    // const profilePicUrl = await GetProfilePicUrl(validNumber.jid, companyId);
+  const contact = await CreateContactService({
+    ...newContact,
+    // profilePicUrl,
+    companyId
+  });
 
-    const contact = await CreateContactService({
-      ...newContact,
-      // profilePicUrl,
-      companyId
-    });
-
-    const io = getIO();
-    io.to(`company-${companyId}-mainchannel`).emit(`company-${companyId}-contact`, {
+  const io = getIO();
+  io.to(`company-${companyId}-mainchannel`).emit(
+    `company-${companyId}-contact`,
+    {
       action: "create",
       contact
-    });
+    }
+  );
 
-    return contact;
-}
+  return contact;
+};
 
-const createUploadedContact = async ( newContact : ContactData, companyId : number, schema : any) => {
-
-  try{
+const createUploadedContact = async (
+  newContact: ContactData,
+  companyId: number,
+  schema: any
+) => {
+  try {
     await schema.validate(newContact);
-  }catch(err:any){
+  } catch (err: any) {
     throw new AppError(err.message);
   }
 
@@ -259,25 +285,30 @@ const createUploadedContact = async ( newContact : ContactData, companyId : numb
   });
 
   const io = getIO();
-    io.to(`company-${companyId}-mainchannel`).emit(`company-${companyId}-contact`, {
+  io.to(`company-${companyId}-mainchannel`).emit(
+    `company-${companyId}-contact`,
+    {
       action: "create",
       contact
-    });
+    }
+  );
 
   return contact;
-}
+};
 
-export const toggleDisableBot = async (req: Request, res: Response): Promise<Response> => {
+export const toggleDisableBot = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
   var { contactId } = req.params;
   const { companyId } = req.user;
   const contact = await ToggleDisableBotContactService({ contactId });
 
   const io = getIO();
-  io.of(String(companyId))
-    .emit(`company-${companyId}-contact`, {
-      action: "update",
-      contact
-    });
+  io.of(String(companyId)).emit(`company-${companyId}-contact`, {
+    action: "update",
+    contact
+  });
 
   return res.status(200).json(contact);
 };

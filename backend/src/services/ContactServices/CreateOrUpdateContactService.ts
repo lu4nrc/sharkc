@@ -17,39 +17,51 @@ interface Request {
   companyId: number;
   extraInfo?: ExtraInfo[];
   whatsappId?: number;
+  remoteJid?: string;
   lid?: string; // ? NOVO CAMPO
 }
 
 const CreateOrUpdateContactService = async ({
   name,
-  number: rawNumber,
+  number,
   profilePicUrl,
   isGroup,
   email = "",
   companyId,
   extraInfo = [],
   whatsappId,
+  remoteJid,
   lid // ? NOVO PARÂMETRO
 }: Request): Promise<Contact> => {
-  const number = isGroup ? rawNumber : rawNumber.replace(/[^0-9]/g, "");
-
   const io = getIO();
-  let contact: Contact | null;
 
-  contact = await Contact.findOne({
-    where: {
-      [Op.or]: [{ number, companyId }, ...(lid ? [{ lid, companyId }] : [])]
-    }
+  const whereConditions: any[] = [];
+  if (number) whereConditions.push({ number, companyId });
+  if (lid) whereConditions.push({ lid, companyId });
+
+  if (whereConditions.length === 0) {
+    throw new Error(
+      "Nem number nem lid foram fornecidos para busca de contato"
+    );
+  }
+
+  let contact = await Contact.findOne({
+    where: { [Op.or]: whereConditions }
   });
+
+  if (!contact.lid && lid) {
+    contact.update({ lid });
+  }
 
   if (contact) {
     contact.update({ profilePicUrl });
     console.log(contact.whatsappId);
-    if (isNil(contact.whatsappId === null)) {
+    if (isNil(contact.whatsappId)) {
       contact.update({
         whatsappId
       });
     }
+
     io.to(`company-${companyId}-mainchannel`).emit(
       `company-${companyId}-contact`,
       {
@@ -67,6 +79,7 @@ const CreateOrUpdateContactService = async ({
       extraInfo,
       companyId,
       whatsappId,
+      remoteJid,
       lid // ? NOVO CAMPO
     });
 
@@ -78,7 +91,7 @@ const CreateOrUpdateContactService = async ({
       }
     );
   }
-
+  //console.log("CreateOrUpdateContactService: ", contact);
   return contact;
 };
 

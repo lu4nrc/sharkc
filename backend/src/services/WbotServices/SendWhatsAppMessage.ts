@@ -1,5 +1,5 @@
 import { WAMessage } from "baileys";
-import WALegacySocket from "baileys"
+import WALegacySocket from "baileys";
 import * as Sentry from "@sentry/node";
 import AppError from "../../errors/AppError";
 import GetTicketWbot from "../../helpers/GetTicketWbot";
@@ -7,6 +7,7 @@ import Message from "../../models/Message";
 import Ticket from "../../models/Ticket";
 
 import formatBody from "../../helpers/Mustache";
+import Contact from "../../models/Contact";
 
 interface Request {
   body: string;
@@ -19,48 +20,55 @@ const SendWhatsAppMessage = async ({
   ticket,
   quotedMsg
 }: Request): Promise<WAMessage> => {
-  let options = {};
   const wbot = await GetTicketWbot(ticket);
-  const number = `${ticket.contact.number}@${
-    ticket.isGroup ? "g.us" : "s.whatsapp.net"
-  }`;
+  const contact = await Contact.findByPk(ticket.contactId);
 
+  if (!contact) {
+    throw new AppError("Contato não encontrado para envio de mensagem");
+  }
+
+  let jid: string;
+
+  if (ticket.isGroup) {
+    jid = `${contact.number}@g.us`;
+  } else if (contact.remoteJid) {
+    jid = contact.remoteJid;
+  } else if (contact.lid) {
+    jid = contact.lid; // o LID já vem completo
+  } else {
+    throw new AppError("Contato sem JID ou LID válido para envio");
+  }
+
+  let options: any = {};
   if (quotedMsg) {
-      const chatMessages = await Message.findOne({
-        where: {
-          id: quotedMsg.id
-        }
-      });
-
-      if (chatMessages) {
-        const msgFound = JSON.parse(chatMessages.dataJson);
-
-        options = {
-          quoted: {
-            key: msgFound.key,
-            message: {
-              extendedTextMessage: msgFound.message.extendedTextMessage
-            }
+    const chatMessage = await Message.findOne({ where: { id: quotedMsg.id } });
+    if (chatMessage) {
+      const msgFound = JSON.parse(chatMessage.dataJson);
+      options = {
+        quoted: {
+          key: msgFound.key,
+          message: {
+            extendedTextMessage: msgFound.message.extendedTextMessage
           }
-        };
-      }
-    
+        }
+      };
+    }
   }
 
   try {
-    const sentMessage = await wbot.sendMessage(number,{
-        text: formatBody(body, ticket.contact)
-      },
+    const sentMessage = await wbot.sendMessage(
+      jid,
       {
-        ...options
-      }
+        text: formatBody(body, contact)
+      },
+      options
     );
 
-    await ticket.update({ lastMessage: formatBody(body, ticket.contact) });
+    await ticket.update({ lastMessage: formatBody(body, contact) });
     return sentMessage;
-  } catch (err) {
+  } catch (err: any) {
     Sentry.captureException(err);
-    console.log(err);
+    console.error("❌ Erro ao enviar mensagem:", err.message);
     throw new AppError("ERR_SENDING_WAPP_MSG");
   }
 };

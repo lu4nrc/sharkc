@@ -468,16 +468,34 @@ const getSenderMessage = (
 
 const getContactMessage = async (msg: proto.IWebMessageInfo, wbot: Session) => {
   const isGroup = msg.key.remoteJid.includes("g.us");
+  let contact = {};
   const rawNumber = msg.key.remoteJid.replace(/\D/g, "");
-  return isGroup
-    ? {
-        id: getSenderMessage(msg, wbot),
-        name: msg.pushName
-      }
-    : {
-        id: msg.key.remoteJid,
-        name: msg.key.fromMe ? rawNumber : msg.pushName
-      };
+
+  console.log("getContactMessage: ", msg.key);
+
+  contact.id = isGroup ? getSenderMessage(msg, wbot) : msg.key.remoteJid;
+  contact.name = msg.key.fromMe ? rawNumber : msg.pushName;
+  contact.isGroup = isGroup;
+
+  // if (msg.key.remoteJid.includes("g.us")) {
+  //   contact.lid = msg.key.participant;
+  //   contact.number = msg.key.participantPn.replace(/\D/g, "");
+  // }
+
+  if (msg.key.remoteJid.includes("@lid")) {
+    contact.lid = msg.key.remoteJid;
+  }
+
+  if (msg.key.senderPn) {
+    contact.number = msg.key.senderPn.replace(/\D/g, "");
+  }
+
+  if (msg.key.remoteJid.includes("@s.whatsapp.net")) {
+    contact.remoteJid = msg.key.remoteJid;
+    contact.number = msg.key.remoteJid.replace(/\D/g, "");
+  }
+  console.log("getContactMessage -> contact", contact);
+  return contact;
 };
 
 const downloadMedia = async (msg: proto.IWebMessageInfo) => {
@@ -522,36 +540,34 @@ const downloadMedia = async (msg: proto.IWebMessageInfo) => {
 };
 
 const verifyContact = async (
-  msgContact: IMe,
+  msgContact: any,
   wbot: Session,
   companyId: number
 ): Promise<Contact> => {
   let profilePicUrl: string;
   try {
     profilePicUrl = await wbot.profilePictureUrl(msgContact.id);
-  } catch (e) {
-    Sentry.captureException(e);
+  } catch {
     profilePicUrl = `${process.env.FRONTEND_URL}/nopicture.png`;
   }
 
-  // Detectar LID contact
-  const isLidContact = msgContact.id.includes("@lid"); // ? NOVA DETECÇÃO
-  const lid = isLidContact ? msgContact.id : undefined; // ? NOVA LÓGICA
-
-  const contactData = {
-    name: msgContact?.name || msgContact.id.replace(/\D/g, ""),
-    number: msgContact.id.replace(/\D/g, ""),
+  let contactData = {
+    name: msgContact.name,
+    number: msgContact.number,
     profilePicUrl,
-    isGroup: msgContact.id.includes("g.us"),
+    isGroup: msgContact.isGroup,
     companyId,
-    whatsappId: wbot.id,
-    lid
+    whatsappId: wbot.id
   };
 
-  if (contactData.isGroup) {
-    contactData.number = msgContact.id.replace("@g.us", "");
+  if (msgContact.lid) {
+    contactData.lid = msgContact.lid;
   }
-  const contact = CreateOrUpdateContactService(contactData);
+  if (msgContact.remoteJid) {
+    contactData.remoteJid = msgContact.remoteJid;
+  }
+
+  const contact = await CreateOrUpdateContactService(contactData);
 
   return contact;
 };
@@ -2258,7 +2274,7 @@ const handleMessage = async (
   companyId: number
 ): Promise<void> => {
   let mediaSent: Message | undefined;
-
+  //console.log("handleMessage: ", msg);
   if (!isValidMsg(msg)) return;
 
   try {
@@ -2266,7 +2282,9 @@ const handleMessage = async (
     let groupContact: Contact | undefined;
 
     const isGroup = msg.key.remoteJid?.endsWith("@g.us");
-
+    if (isGroup) {
+      return;
+    }
     const msgIsGroupBlock = await Setting.findOne({
       where: {
         companyId,
@@ -2895,14 +2913,22 @@ const handleMsgAck = async (
     });
 
     if (!messageToUpdate) return;
-    await messageToUpdate.update({ ack: chat });
-    io.to(messageToUpdate.ticketId.toString()).emit(
-      `company-${messageToUpdate.companyId}-appMessage`,
-      {
-        action: "update",
-        message: messageToUpdate
-      }
-    );
+
+    if (
+      chat !== null &&
+      chat !== undefined &&
+      chat > (messageToUpdate.ack ?? 0)
+    ) {
+      await messageToUpdate.update({ ack: chat });
+
+      io.to(messageToUpdate.ticketId.toString()).emit(
+        `company-${messageToUpdate.companyId}-appMessage`,
+        {
+          action: "update",
+          message: messageToUpdate
+        }
+      );
+    }
   } catch (err) {
     Sentry.captureException(err);
     logger.error(`Error handling message ack. Err: ${err}`);
@@ -2964,39 +2990,79 @@ const wbotMessageListener = async (
 ): Promise<void> => {
   try {
     wbot.ev.on("messages.upsert", async (messageUpsert: ImessageUpsert) => {
-      const messages = messageUpsert.messages
-        .filter(filterMessages)
-        .map(msg => msg);
+      try {
+        const messages = messageUpsert.messages
+          .filter(filterMessages)
+          .map(msg => msg);
 
-      if (!messages) return;
+        if (!messages || messages.length === 0) return;
 
-      for (const message of messages) {
-        const messageExists = await Message.count({
-          where: { id: message.key.id!, companyId }
-        });
+        for (const message of messages) {
+          // console.log("📥 messages.upsert", {
+          //   remoteJid: message.key.remoteJid,
+          //   id: message.key.id,
+          //   participant: message.key.participant,
+          //   fromMe: message.key.fromMe
+          // });
 
-        if (!messageExists) {
+          // 🚫 Ignorar mensagens não decriptadas (sem conteúdo)
+          if (!message.message) {
+            console.warn(
+              "⚠️ Mensagem recebida sem conteúdo (provável LID sem sessão)",
+              message.key
+            );
+            continue;
+          }
+
+          // 🔄 Evitar duplicatas
+          const messageExists = await Message.count({
+            where: { id: message.key.id!, companyId }
+          });
+
+          if (messageExists) continue;
+
+          // ✅ Processa mensagem normalmente
           await handleMessage(message, wbot, companyId);
           await verifyCampaignMessageAndCloseTicket(message, companyId);
         }
+      } catch (err: any) {
+        if (err.message?.includes("No session found to decrypt message")) {
+          console.warn("⚠️ Ignorando mensagem LID sem sessão criptográfica");
+          return;
+        }
+
+        Sentry.captureException(err);
+        logger.error(
+          `Erro no listener de messages.upsert. Detalhes: ${err.message}`
+        );
       }
     });
 
-    wbot.ev.on("messages.update", (messageUpdate: WAMessageUpdate[]) => {
-      if (messageUpdate.length === 0) return;
-      messageUpdate.forEach(async (message: WAMessageUpdate) => {
-        (wbot as WASocket)!.readMessages([message.key]);
+    wbot.ev.on("messages.update", async (messageUpdate: WAMessageUpdate[]) => {
+      try {
+        if (messageUpdate.length === 0) return;
 
-        handleMsgAck(message, message.update.status);
-      });
+        for (const message of messageUpdate) {
+          if (!message.key?.id) continue;
+
+          // console.log("📥 messages.update:", {
+          //   remoteJid: message.key.remoteJid,
+          //   status: message.update?.status
+          // });
+
+          (wbot as WASocket)!.readMessages([message.key]);
+          await handleMsgAck(message as any, message.update?.status);
+        }
+      } catch (err) {
+        Sentry.captureException(err);
+        logger.error(
+          `Erro no listener de messages.update. Detalhes: ${err.message}`
+        );
+      }
     });
-
-    // wbot.ev.on("messages.set", async (messageSet: IMessage) => {
-    //   messageSet.messages.filter(filterMessages).map(msg => msg);
-    // });
   } catch (error) {
     Sentry.captureException(error);
-    logger.error(`Error handling wbot message listener. Err: ${error}`);
+    logger.error(`Erro ao iniciar wbotMessageListener. Err: ${error}`);
   }
 };
 

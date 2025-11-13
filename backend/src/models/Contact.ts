@@ -82,6 +82,9 @@ class Contact extends Model<Contact> {
   whatsappId: number;
 
   @Column
+  remoteJid: string;
+
+  @Column
   lid: string; // ? NOVO CAMPO
 
   @BelongsTo(() => Whatsapp)

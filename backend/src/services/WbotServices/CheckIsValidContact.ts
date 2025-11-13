@@ -12,6 +12,7 @@ const CheckIsValidContact = async (
 
   try {
     const isValidNumber = await wbot.onWhatsApp(`${number}`);
+    console.log("CheckIsValidContact: ", isValidNumber);
     if (!isValidNumber) {
       throw new AppError("invalidNumber");
     }
