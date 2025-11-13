@@ -36,9 +36,8 @@ const SendWhatsAppMessage = async ({
   } else if (contact.lid) {
     jid = contact.lid; // o LID já vem completo
   } else if (contact.lid) {
-    jid = `${contact.number}@s.whatsapp.net`; // o LID já vem completo
   } else {
-    throw new AppError("Contato sem JID ou LID válido para envio");
+    jid = `${contact.number}@s.whatsapp.net`;
   }
 
   let options: any = {};
