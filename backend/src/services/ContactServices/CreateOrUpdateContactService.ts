@@ -50,19 +50,31 @@ const CreateOrUpdateContactService = async ({
   });
 
   if (contact) {
+    const updates: any = {};
+    console.log("CreateOrUpdate: ", remoteJid, contact.remoteJid);
+    // Atualiza LID somente se antes era null
+    if (remoteJid !== contact.remoteJid) {
+      updates.remoteJid = remoteJid;
+    }
     // Atualiza LID somente se antes era null
     if (lid && !contact.lid) {
-      await contact.update({ lid });
+      updates.lid = lid;
     }
 
-    // Atualiza profile
-    if (profilePicUrl) {
-      await contact.update({ profilePicUrl });
+    // Atualiza profilePicUrl
+    if (profilePicUrl !== contact.profilePicUrl) {
+      updates.profilePicUrl = profilePicUrl;
     }
 
     // Atualiza whatsappId se não existir
     if (isNil(contact.whatsappId)) {
-      await contact.update({ whatsappId });
+      updates.whatsappId = whatsappId;
+    }
+
+    // Só chama update se houver algo pra atualizar
+    if (Object.keys(updates).length > 0) {
+      console.log("🟢 Contato Atualizado:", updates);
+      await contact.update(updates);
     }
 
     io.to(`company-${companyId}-mainchannel`).emit(

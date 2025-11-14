@@ -483,18 +483,18 @@ const getContactMessage = async (msg: proto.IWebMessageInfo, wbot: Session) => {
   // }
 
   if (msg.key.remoteJid.includes("@lid")) {
+    contact.remoteJid = msg.key.remoteJid;
     contact.lid = msg.key.remoteJid;
-  }
-
-  if (msg.key.senderPn) {
-    contact.number = msg.key.senderPn.replace(/\D/g, "");
+    contact.number = msg.key.senderPn
+      ? msg.key.senderPn.replace(/\D/g, "")
+      : undefined;
   }
 
   if (msg.key.remoteJid.includes("@s.whatsapp.net")) {
     contact.remoteJid = msg.key.remoteJid;
     contact.number = msg.key.remoteJid.replace(/\D/g, "");
   }
-  console.log("getContactMessage -> contact", contact);
+  console.log(contact);
   return contact;
 };
 
@@ -557,15 +557,10 @@ const verifyContact = async (
     profilePicUrl,
     isGroup: msgContact.isGroup,
     companyId,
-    whatsappId: wbot.id
+    whatsappId: wbot.id,
+    remoteJid: msgContact.remoteJid || undefined,
+    lid: msgContact.lid || undefined
   };
-
-  if (msgContact.lid) {
-    contactData.lid = msgContact.lid;
-  }
-  if (msgContact.remoteJid) {
-    contactData.remoteJid = msgContact.remoteJid;
-  }
 
   const contact = await CreateOrUpdateContactService(contactData);
 

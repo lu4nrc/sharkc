@@ -33,9 +33,6 @@ const SendWhatsAppMessage = async ({
     jid = `${contact.number}@g.us`;
   } else if (contact.remoteJid) {
     jid = contact.remoteJid;
-  } else if (contact.lid) {
-    jid = contact.lid; // o LID já vem completo
-  } else if (contact.lid) {
   } else {
     jid = `${contact.number}@s.whatsapp.net`;
   }
