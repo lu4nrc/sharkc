@@ -31,13 +31,13 @@ const CreateOrUpdateContactService = async ({
   extraInfo = [],
   whatsappId,
   remoteJid,
-  lid // ? NOVO PARÂMETRO
+  lid: remoteLid // ? NOVO PARÂMETRO
 }: Request): Promise<Contact> => {
   const io = getIO();
 
   const whereConditions: any[] = [];
   if (number) whereConditions.push({ number, companyId });
-  if (lid) whereConditions.push({ lid, companyId });
+  if (remoteLid) whereConditions.push({ remoteLid, companyId });
 
   if (whereConditions.length === 0) {
     throw new Error(
@@ -49,8 +49,9 @@ const CreateOrUpdateContactService = async ({
     where: { [Op.or]: whereConditions }
   });
 
-  if (!contact.lid && lid) {
-    contact.update({ lid });
+  console.log(remoteLid, "->", !contact.lid);
+  if (remoteLid && !contact.lid) {
+    contact.update({ remoteLid });
   }
 
   if (contact) {
