@@ -49,18 +49,20 @@ const CreateOrUpdateContactService = async ({
     where: { [Op.or]: whereConditions }
   });
 
-  console.log(remoteLid, "->", !contact.lid);
-  if (remoteLid && !contact.lid) {
-    contact.update({ remoteLid });
-  }
-
   if (contact) {
-    contact.update({ profilePicUrl });
-    console.log(contact.whatsappId);
+    // Atualiza LID somente se antes era null
+    if (remoteLid && !contact.lid) {
+      await contact.update({ lid: remoteLid });
+    }
+
+    // Atualiza profile
+    if (profilePicUrl) {
+      await contact.update({ profilePicUrl });
+    }
+
+    // Atualiza whatsappId se não existir
     if (isNil(contact.whatsappId)) {
-      contact.update({
-        whatsappId
-      });
+      await contact.update({ whatsappId });
     }
 
     io.to(`company-${companyId}-mainchannel`).emit(
@@ -71,6 +73,7 @@ const CreateOrUpdateContactService = async ({
       }
     );
   } else {
+    // Criar novo contato
     contact = await Contact.create({
       name,
       number,
@@ -81,7 +84,7 @@ const CreateOrUpdateContactService = async ({
       companyId,
       whatsappId,
       remoteJid,
-      lid // ? NOVO CAMPO
+      lid: remoteLid
     });
 
     io.to(`company-${companyId}-mainchannel`).emit(
@@ -92,7 +95,7 @@ const CreateOrUpdateContactService = async ({
       }
     );
   }
-  //console.log("CreateOrUpdateContactService: ", contact);
+
   return contact;
 };
 
