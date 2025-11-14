@@ -31,13 +31,13 @@ const CreateOrUpdateContactService = async ({
   extraInfo = [],
   whatsappId,
   remoteJid,
-  lid: remoteLid // ? NOVO PARÂMETRO
+  lid // ? NOVO PARÂMETRO
 }: Request): Promise<Contact> => {
   const io = getIO();
 
   const whereConditions: any[] = [];
   if (number) whereConditions.push({ number, companyId });
-  if (remoteLid) whereConditions.push({ remoteLid, companyId });
+  if (lid) whereConditions.push({ lid, companyId });
 
   if (whereConditions.length === 0) {
     throw new Error(
@@ -51,8 +51,8 @@ const CreateOrUpdateContactService = async ({
 
   if (contact) {
     // Atualiza LID somente se antes era null
-    if (remoteLid && !contact.lid) {
-      await contact.update({ lid: remoteLid });
+    if (lid && !contact.lid) {
+      await contact.update({ lid });
     }
 
     // Atualiza profile
@@ -84,7 +84,7 @@ const CreateOrUpdateContactService = async ({
       companyId,
       whatsappId,
       remoteJid,
-      lid: remoteLid
+      lid
     });
 
     io.to(`company-${companyId}-mainchannel`).emit(
