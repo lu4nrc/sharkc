@@ -471,7 +471,7 @@ const getContactMessage = async (msg: proto.IWebMessageInfo, wbot: Session) => {
   let contact = {};
   const rawNumber = msg.key.remoteJid.replace(/\D/g, "");
 
-  console.log("getContactMessage: ", msg.key);
+  //console.log("getContactMessage: ", msg.key);
 
   contact.id = isGroup ? getSenderMessage(msg, wbot) : msg.key.remoteJid;
   contact.name = msg.key.fromMe ? rawNumber : msg.pushName;

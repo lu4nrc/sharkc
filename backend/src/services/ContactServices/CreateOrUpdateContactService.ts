@@ -51,7 +51,7 @@ const CreateOrUpdateContactService = async ({
 
   if (contact) {
     const updates: any = {};
-    console.log("CreateOrUpdate: ", remoteJid, contact.remoteJid);
+    //console.log("CreateOrUpdate: ", remoteJid, contact.remoteJid);
     // Atualiza LID somente se antes era null
     if (remoteJid !== contact.remoteJid) {
       updates.remoteJid = remoteJid;
