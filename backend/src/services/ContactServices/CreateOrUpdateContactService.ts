@@ -73,7 +73,7 @@ const CreateOrUpdateContactService = async ({
 
     // Só chama update se houver algo pra atualizar
     if (Object.keys(updates).length > 0) {
-      console.log("🟢 Contato Atualizado:", updates);
+      //console.log("🟢 Contato Atualizado:", updates);
       await contact.update(updates);
     }
 
