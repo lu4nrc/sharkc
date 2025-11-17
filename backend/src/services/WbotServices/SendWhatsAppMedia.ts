@@ -130,7 +130,7 @@ const SendWhatsAppMedia = async ({
     if (typeMessage === "video") {
       options = {
         video: fs.readFileSync(pathMedia),
-        caption: bodyMessage,
+        //caption: bodyMessage,
         fileName: media.originalname
         // gifPlayback: true
       };
@@ -153,21 +153,21 @@ const SendWhatsAppMedia = async ({
     } else if (typeMessage === "document" || typeMessage === "text") {
       options = {
         document: fs.readFileSync(pathMedia),
-        caption: bodyMessage,
+        //caption: bodyMessage,
         fileName: media.originalname,
         mimetype: media.mimetype
       };
     } else if (typeMessage === "application") {
       options = {
         document: fs.readFileSync(pathMedia),
-        caption: bodyMessage,
+        //caption: bodyMessage,
         fileName: media.originalname,
         mimetype: media.mimetype
       };
     } else {
       options = {
-        image: fs.readFileSync(pathMedia),
-        caption: bodyMessage
+        image: fs.readFileSync(pathMedia)
+        //caption: bodyMessage
       };
     }
 

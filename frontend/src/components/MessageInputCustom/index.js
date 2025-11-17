@@ -1,65 +1,65 @@
-import React, { useState, useEffect, useContext, useRef } from "react";
-import withWidth, { isWidthUp } from "@material-ui/core/withWidth";
-import "emoji-mart/css/emoji-mart.css";
-import { Picker } from "emoji-mart";
-import MicRecorder from "mic-recorder-to-mp3";
-import clsx from "clsx";
-import { isNil } from "lodash";
+import React, { useState, useEffect, useContext, useRef } from 'react';
+import withWidth, { isWidthUp } from '@material-ui/core/withWidth';
+import 'emoji-mart/css/emoji-mart.css';
+import { Picker } from 'emoji-mart';
+import MicRecorder from 'mic-recorder-to-mp3';
+import clsx from 'clsx';
+import { isNil } from 'lodash';
 
-import { makeStyles } from "@material-ui/core/styles";
-import Paper from "@material-ui/core/Paper";
-import InputBase from "@material-ui/core/InputBase";
-import CircularProgress from "@material-ui/core/CircularProgress";
-import { green } from "@material-ui/core/colors";
-import AttachFileIcon from "@material-ui/icons/AttachFile";
-import IconButton from "@material-ui/core/IconButton";
-import MoodIcon from "@material-ui/icons/Mood";
-import SendIcon from "@material-ui/icons/Send";
-import CancelIcon from "@material-ui/icons/Cancel";
-import ClearIcon from "@material-ui/icons/Clear";
-import MicIcon from "@material-ui/icons/Mic";
-import CheckCircleOutlineIcon from "@material-ui/icons/CheckCircleOutline";
-import HighlightOffIcon from "@material-ui/icons/HighlightOff";
-import { FormControlLabel, Switch } from "@material-ui/core";
-import Autocomplete from "@material-ui/lab/Autocomplete";
-import { isString, isEmpty, isObject, has } from "lodash";
+import { makeStyles } from '@material-ui/core/styles';
+import Paper from '@material-ui/core/Paper';
+import InputBase from '@material-ui/core/InputBase';
+import CircularProgress from '@material-ui/core/CircularProgress';
+import { green } from '@material-ui/core/colors';
+import AttachFileIcon from '@material-ui/icons/AttachFile';
+import IconButton from '@material-ui/core/IconButton';
+import MoodIcon from '@material-ui/icons/Mood';
+import SendIcon from '@material-ui/icons/Send';
+import CancelIcon from '@material-ui/icons/Cancel';
+import ClearIcon from '@material-ui/icons/Clear';
+import MicIcon from '@material-ui/icons/Mic';
+import CheckCircleOutlineIcon from '@material-ui/icons/CheckCircleOutline';
+import HighlightOffIcon from '@material-ui/icons/HighlightOff';
+import { FormControlLabel, Switch } from '@material-ui/core';
+import Autocomplete from '@material-ui/lab/Autocomplete';
+import { isString, isEmpty, isObject, has } from 'lodash';
 
-import { i18n } from "../../translate/i18n";
-import api from "../../services/api";
-import axios from "axios";
+import { i18n } from '../../translate/i18n';
+import api from '../../services/api';
+import axios from 'axios';
 
-import RecordingTimer from "./RecordingTimer";
-import { ReplyMessageContext } from "../../context/ReplyingMessage/ReplyingMessageContext";
-import { AuthContext } from "../../context/Auth/AuthContext";
-import { useLocalStorage } from "../../hooks/useLocalStorage";
-import toastError from "../../errors/toastError";
+import RecordingTimer from './RecordingTimer';
+import { ReplyMessageContext } from '../../context/ReplyingMessage/ReplyingMessageContext';
+import { AuthContext } from '../../context/Auth/AuthContext';
+import { useLocalStorage } from '../../hooks/useLocalStorage';
+import toastError from '../../errors/toastError';
 
-import useQuickMessages from "../../hooks/useQuickMessages";
+import useQuickMessages from '../../hooks/useQuickMessages';
 
 const Mp3Recorder = new MicRecorder({ bitRate: 128 });
 
 const useStyles = makeStyles((theme) => ({
   mainWrapper: {
     backgroundColor: theme.palette.bordabox, //DARK MODE PLW DESIGN//
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    borderTop: "1px solid rgba(0, 0, 0, 0.12)",
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    borderTop: '1px solid rgba(0, 0, 0, 0.12)',
   },
 
   newMessageBox: {
     backgroundColor: theme.palette.newmessagebox, //DARK MODE PLW DESIGN//
-    width: "100%",
-    display: "flex",
-    padding: "7px",
-    alignItems: "center",
+    width: '100%',
+    display: 'flex',
+    padding: '7px',
+    alignItems: 'center',
   },
 
   messageInputWrapper: {
     padding: 6,
     marginRight: 7,
     backgroundColor: theme.palette.inputdigita, //DARK MODE PLW DESIGN//
-    display: "flex",
+    display: 'flex',
     borderRadius: 20,
     flex: 1,
   },
@@ -67,67 +67,67 @@ const useStyles = makeStyles((theme) => ({
   messageInput: {
     paddingLeft: 10,
     flex: 1,
-    border: "none",
+    border: 'none',
   },
 
   sendMessageIcons: {
-    color: "grey",
+    color: 'grey',
   },
 
   uploadInput: {
-    display: "none",
+    display: 'none',
   },
 
   viewMediaInputWrapper: {
-    display: "flex",
-    padding: "10px 13px",
-    position: "relative",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: "#eee",
-    borderTop: "1px solid rgba(0, 0, 0, 0.12)",
+    display: 'flex',
+    padding: '10px 13px',
+    position: 'relative',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#eee',
+    borderTop: '1px solid rgba(0, 0, 0, 0.12)',
   },
 
   emojiBox: {
-    position: "absolute",
+    position: 'absolute',
     bottom: 63,
     width: 40,
-    borderTop: "1px solid #e8e8e8",
+    borderTop: '1px solid #e8e8e8',
   },
 
   circleLoading: {
     color: green[500],
-    opacity: "70%",
-    position: "absolute",
-    top: "20%",
-    left: "50%",
+    opacity: '70%',
+    position: 'absolute',
+    top: '20%',
+    left: '50%',
     marginLeft: -12,
   },
 
   audioLoading: {
     color: green[500],
-    opacity: "70%",
+    opacity: '70%',
   },
 
   recorderWrapper: {
-    display: "flex",
-    alignItems: "center",
-    alignContent: "middle",
+    display: 'flex',
+    alignItems: 'center',
+    alignContent: 'middle',
   },
 
   cancelAudioIcon: {
-    color: "red",
+    color: 'red',
   },
 
   sendAudioIcon: {
-    color: "green",
+    color: 'green',
   },
 
   replyginMsgWrapper: {
-    display: "flex",
-    width: "100%",
-    alignItems: "center",
-    justifyContent: "center",
+    display: 'flex',
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingTop: 8,
     paddingLeft: 73,
     paddingRight: 7,
@@ -136,36 +136,36 @@ const useStyles = makeStyles((theme) => ({
   replyginMsgContainer: {
     flex: 1,
     marginRight: 5,
-    overflowY: "hidden",
-    backgroundColor: "rgba(0, 0, 0, 0.05)",
-    borderRadius: "7.5px",
-    display: "flex",
-    position: "relative",
+    overflowY: 'hidden',
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    borderRadius: '7.5px',
+    display: 'flex',
+    position: 'relative',
   },
 
   replyginMsgBody: {
     padding: 10,
-    height: "auto",
-    display: "block",
-    whiteSpace: "pre-wrap",
-    overflow: "hidden",
+    height: 'auto',
+    display: 'block',
+    whiteSpace: 'pre-wrap',
+    overflow: 'hidden',
   },
 
   replyginContactMsgSideColor: {
-    flex: "none",
-    width: "4px",
-    backgroundColor: "#35cd96",
+    flex: 'none',
+    width: '4px',
+    backgroundColor: '#35cd96',
   },
 
   replyginSelfMsgSideColor: {
-    flex: "none",
-    width: "4px",
-    backgroundColor: "#6bcbef",
+    flex: 'none',
+    width: '4px',
+    backgroundColor: '#6bcbef',
   },
 
   messageContactName: {
-    display: "flex",
-    color: "#6bcbef",
+    display: 'flex',
+    color: '#6bcbef',
     fontWeight: 500,
   },
 }));
@@ -199,11 +199,11 @@ const EmojiOptions = (props) => {
 
 const SignSwitch = (props) => {
   const { width, setSignMessage, signMessage } = props;
-  if (isWidthUp("md", width)) {
+  if (isWidthUp('md', width)) {
     return (
       <FormControlLabel
-        style={{ marginRight: 7, color: "gray" }}
-        label={i18n.t("messagesInput.signMessage")}
+        style={{ marginRight: 7, color: 'gray' }}
+        label={i18n.t('messagesInput.signMessage')}
         labelPlacement="start"
         control={
           <Switch
@@ -306,7 +306,7 @@ const ActionButtons = (props) => {
       <IconButton
         aria-label="showRecorder"
         component="span"
-        disabled={loading || ticketStatus !== "open"}
+        disabled={loading || ticketStatus !== 'open'}
         onClick={handleStartRecording}
       >
         <MicIcon className={classes.sendMessageIcons} />
@@ -338,12 +338,12 @@ const CustomInput = (props) => {
 
   useEffect(() => {
     async function fetchData() {
-      const companyId = localStorage.getItem("companyId");
+      const companyId = localStorage.getItem('companyId');
       const messages = await listQuickMessages({ companyId, userId: user.id });
       const options = messages.map((m) => {
         let truncatedMessage = m.message;
         if (isString(truncatedMessage) && truncatedMessage.length > 35) {
-          truncatedMessage = m.message.substring(0, 35) + "...";
+          truncatedMessage = m.message.substring(0, 35) + '...';
         }
         return {
           value: m.message,
@@ -364,10 +364,10 @@ const CustomInput = (props) => {
       inputMessage.length > 1
     ) {
       const firstWord = inputMessage.charAt(0);
-      setPopupOpen(firstWord.indexOf("/") > -1);
+      setPopupOpen(firstWord.indexOf('/') > -1);
 
       const filteredOptions = quickMessages.filter(
-        (m) => m.label.indexOf(inputMessage) > -1
+        (m) => m.label.indexOf(inputMessage) > -1,
       );
       setOptions(filteredOptions);
     } else {
@@ -376,26 +376,30 @@ const CustomInput = (props) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inputMessage]);
 
-  const onKeyPress = (e) => {
-    if (loading || e.shiftKey) return;
-    else if (e.key === "Enter") {
+  const onKeyDown = (e) => {
+    if (loading || e.shiftKey) {
+      return;
+    }
+
+    if (e.key === 'Enter') {
+      e.preventDefault();
+
       handleSendMessage();
     }
   };
 
   const onPaste = (e) => {
-    if (ticketStatus === "open") {
+    if (ticketStatus === 'open') {
       handleInputPaste(e);
     }
   };
 
   const renderPlaceholder = () => {
-    if (ticketStatus === "open") {
-      return i18n.t("messagesInput.placeholderOpen");
+    if (ticketStatus === 'open') {
+      return i18n.t('messagesInput.placeholderOpen');
     }
-    return i18n.t("messagesInput.placeholderClosed");
+    return i18n.t('messagesInput.placeholderClosed');
   };
-
 
   const setInputRef = (input) => {
     if (input) {
@@ -421,13 +425,16 @@ const CustomInput = (props) => {
           }
         }}
         onChange={(event, opt) => {
-         
-          if (isObject(opt) && has(opt, "value") && isNil(opt.mediaPath)) {
+          if (isObject(opt) && has(opt, 'value') && isNil(opt.mediaPath)) {
             setInputMessage(opt.value);
             setTimeout(() => {
               inputRef.current.scrollTop = inputRef.current.scrollHeight;
             }, 200);
-          } else if (isObject(opt) && has(opt, "value") && !isNil(opt.mediaPath)) {
+          } else if (
+            isObject(opt) &&
+            has(opt, 'value') &&
+            !isNil(opt.mediaPath)
+          ) {
             handleQuickAnswersClick(opt);
 
             setTimeout(() => {
@@ -436,13 +443,13 @@ const CustomInput = (props) => {
           }
         }}
         onInputChange={(event, opt, reason) => {
-          if (reason === "input") {
+          if (reason === 'input') {
             setInputMessage(event.target.value);
           }
         }}
         onPaste={onPaste}
-        onKeyPress={onKeyPress}
-        style={{ width: "100%" }}
+        onKeyDown={onKeyDown}
+        style={{ width: '100%' }}
         renderInput={(params) => {
           const { InputLabelProps, InputProps, ...rest } = params;
           return (
@@ -468,7 +475,7 @@ const MessageInputCustom = (props) => {
   const classes = useStyles();
 
   const [medias, setMedias] = useState([]);
-  const [inputMessage, setInputMessage] = useState("");
+  const [inputMessage, setInputMessage] = useState('');
   const [showEmoji, setShowEmoji] = useState(false);
   const [loading, setLoading] = useState(false);
   const [recording, setRecording] = useState(false);
@@ -477,7 +484,7 @@ const MessageInputCustom = (props) => {
     useContext(ReplyMessageContext);
   const { user } = useContext(AuthContext);
 
-  const [signMessage, setSignMessage] = useLocalStorage("signOption", true);
+  const [signMessage, setSignMessage] = useLocalStorage('signOption', true);
 
   useEffect(() => {
     inputRef.current.focus();
@@ -486,7 +493,7 @@ const MessageInputCustom = (props) => {
   useEffect(() => {
     inputRef.current.focus();
     return () => {
-      setInputMessage("");
+      setInputMessage('');
       setShowEmoji(false);
       setMedias([]);
       setReplyingMessage(null);
@@ -524,13 +531,13 @@ const MessageInputCustom = (props) => {
   const handleUploadQuickMessageMedia = async (blob, message) => {
     setLoading(true);
     try {
-      const extension = blob.type.split("/")[1];
+      const extension = blob.type.split('/')[1];
 
       const formData = new FormData();
       const filename = `${new Date().getTime()}.${extension}`;
-      formData.append("medias", blob, filename);
-      formData.append("body",  message);
-      formData.append("fromMe", true);
+      formData.append('medias', blob, filename);
+      formData.append('body', message);
+      formData.append('fromMe', true);
 
       await api.post(`/messages/${ticketId}`, formData);
     } catch (err) {
@@ -539,16 +546,16 @@ const MessageInputCustom = (props) => {
     }
     setLoading(false);
   };
-  
+
   const handleQuickAnswersClick = async (value) => {
     if (value.mediaPath) {
       try {
         const { data } = await axios.get(value.mediaPath, {
-          responseType: "blob",
+          responseType: 'blob',
         });
 
         handleUploadQuickMessageMedia(data, value.value);
-        setInputMessage("");
+        setInputMessage('');
         return;
         //  handleChangeMedias(response)
       } catch (err) {
@@ -556,7 +563,7 @@ const MessageInputCustom = (props) => {
       }
     }
 
-    setInputMessage("");
+    setInputMessage('');
     setInputMessage(value.value);
   };
 
@@ -565,10 +572,10 @@ const MessageInputCustom = (props) => {
     e.preventDefault();
 
     const formData = new FormData();
-    formData.append("fromMe", true);
+    formData.append('fromMe', true);
     medias.forEach((media) => {
-      formData.append("medias", media);
-      formData.append("body", media.name);
+      formData.append('medias', media);
+      formData.append('body', 'AQUI');
     });
 
     try {
@@ -582,13 +589,13 @@ const MessageInputCustom = (props) => {
   };
 
   const handleSendMessage = async () => {
-    if (inputMessage.trim() === "") return;
+    if (inputMessage.trim() === '') return;
     setLoading(true);
 
     const message = {
       read: 1,
       fromMe: true,
-      mediaUrl: "",
+      mediaUrl: '',
       body: signMessage
         ? `*${user?.name}:*\n${inputMessage.trim()}`
         : inputMessage.trim(),
@@ -600,7 +607,7 @@ const MessageInputCustom = (props) => {
       toastError(err);
     }
 
-    setInputMessage("");
+    setInputMessage('');
     setShowEmoji(false);
     setLoading(false);
     setReplyingMessage(null);
@@ -631,9 +638,9 @@ const MessageInputCustom = (props) => {
 
       const formData = new FormData();
       const filename = `audio-record-site-${new Date().getTime()}.mp3`;
-      formData.append("medias", blob, filename);
-      formData.append("body", filename);
-      formData.append("fromMe", true);
+      formData.append('medias', blob, filename);
+      formData.append('body', filename);
+      formData.append('fromMe', true);
 
       await api.post(`/messages/${ticketId}`, formData);
     } catch (err) {
@@ -654,7 +661,7 @@ const MessageInputCustom = (props) => {
   };
 
   const disableOption = () => {
-    return loading || recording || ticketStatus !== "open";
+    return loading || recording || ticketStatus !== 'open';
   };
 
   const renderReplyingMessage = (message) => {
@@ -678,7 +685,7 @@ const MessageInputCustom = (props) => {
         <IconButton
           aria-label="showRecorder"
           component="span"
-          disabled={loading || ticketStatus !== "open"}
+          disabled={loading || ticketStatus !== 'open'}
           onClick={() => setReplyingMessage(null)}
         >
           <ClearIcon className={classes.sendMessageIcons} />
