@@ -23,8 +23,12 @@ import { StartWhatsAppSession } from "../services/WbotServices/StartWhatsAppSess
 import DeleteBaileysService from "../services/BaileysServices/DeleteBaileysService";
 import NodeCache from "node-cache";
 
+// 🔥 Ativa debug extremo do Baileys
+process.env.DEBUG = "baileys*";
+
 const loggerBaileys = MAIN_LOGGER.child({});
-loggerBaileys.level = "trace"; // LOG: aumentar nível para ver tudo
+loggerBaileys.level = "trace";
+logger.info("Baileys TRACE logger activated");
 
 type Session = WASocket & {
   id?: number;
@@ -86,7 +90,6 @@ export const initWASocket = async (whatsapp: Whatsapp): Promise<Session> => {
         logger.info(`Provider (legacy?): ${provider}`);
 
         let retriesQrCode = 0;
-
         let wsocket: Session = null;
 
         const { state, saveState } = await authState(whatsapp);
@@ -94,7 +97,6 @@ export const initWASocket = async (whatsapp: Whatsapp): Promise<Session> => {
         const msgRetryCounterCache = new NodeCache();
         const userDevicesCache: CacheStore = new NodeCache();
 
-        // LOG: construção do socket
         logger.info(`Initializing WASocket for ${name}`);
 
         wsocket = makeWASocket({
@@ -110,26 +112,49 @@ export const initWASocket = async (whatsapp: Whatsapp): Promise<Session> => {
           shouldIgnoreJid: jid => isJidBroadcast(jid)
         });
 
-        // LOG: Socket criado
         logger.info(`Baileys socket instance created for ${name}`);
 
+        // 🔥🔥 LOGS DO WEBSOCKET INTERNO (ESSENCIAIS)
+        if (wsocket?.ws) {
+          wsocket.ws.on("open", () => {
+            logger.info(`[Baileys][${name}] WS → OPEN`);
+          });
+
+          wsocket.ws.on("close", (code, reason) => {
+            logger.error(
+              `[Baileys][${name}] WS → CLOSE | code=${code} | reason=${reason?.toString()}`
+            );
+          });
+
+          wsocket.ws.on("error", err => {
+            logger.error(
+              `[Baileys][${name}] WS → ERROR | ${err?.message || err}`
+            );
+          });
+
+          wsocket.ws.on("unexpected-response", (req, res) => {
+            logger.error(
+              `[Baileys][${name}] WS → UNEXPECTED RESPONSE | HTTP ${res.statusCode}`
+            );
+          });
+        }
+
+        // 🔥 Início da escuta de eventos do Baileys
         wsocket.ev.on(
           "connection.update",
           async ({ connection, lastDisconnect, qr }) => {
-            // LOG: todas atualizações de conexão
             logger.info(
               `[Baileys][${name}] connection.update → ${connection || ""}`
             );
 
             if (lastDisconnect?.error) {
-              logger.error(
-                `[Baileys][${name}] lastDisconnect error: ${
-                  (lastDisconnect.error as Boom)?.message
-                }`
-              );
+              const errorObj = lastDisconnect.error as Boom;
 
               logger.error(
-                `[Baileys][${name}] lastDisconnect full error: ${JSON.stringify(
+                `[Baileys][${name}] lastDisconnect error: ${errorObj?.message}`
+              );
+              logger.error(
+                `[Baileys][${name}] lastDisconnect full: ${JSON.stringify(
                   lastDisconnect.error,
                   null,
                   2
@@ -138,32 +163,36 @@ export const initWASocket = async (whatsapp: Whatsapp): Promise<Session> => {
             }
 
             if (connection === "close") {
-              const statusCode = (lastDisconnect?.error as Boom)?.output
-                ?.statusCode;
+              // 🔥 Obtém o statusCode real
+              let statusCode =
+                (lastDisconnect?.error as Boom)?.output?.statusCode ||
+                (lastDisconnect?.error as any)?.status ||
+                (lastDisconnect?.error as any)?.code ||
+                null;
 
               logger.error(
-                `[Baileys][${name}] Connection closed. Status code: ${statusCode}`
+                `[Baileys][${name}] Connection closed. StatusCode → ${statusCode}`
               );
 
               if (statusCode === 403) {
-                logger.error(`[Baileys][${name}] BLOCKED BY WHATSAPP (403)`);
+                logger.error(`[Baileys][${name}] BLOCKED BY WHATSAPP (403)!`);
 
                 await whatsapp.update({ status: "PENDING", session: "" });
                 await DeleteBaileysService(whatsapp.id);
+
                 io.to(`company-${whatsapp.companyId}-mainchannel`).emit(
                   `company-${whatsapp.companyId}-whatsappSession`,
-                  {
-                    action: "update",
-                    session: whatsapp
-                  }
+                  { action: "update", session: whatsapp }
                 );
+
                 removeWbot(id, false);
               }
 
               if (statusCode !== DisconnectReason.loggedOut) {
                 logger.warn(
-                  `[Baileys][${name}] Unexpected disconnect – reconnecting`
+                  `[Baileys][${name}] Unexpected disconnect — reconnecting...`
                 );
+
                 removeWbot(id, false);
                 setTimeout(
                   () => StartWhatsAppSession(whatsapp, whatsapp.companyId),
@@ -171,14 +200,17 @@ export const initWASocket = async (whatsapp: Whatsapp): Promise<Session> => {
                 );
               } else {
                 logger.warn(
-                  `[Baileys][${name}] Logged out. Cleaning state and restarting session`
+                  `[Baileys][${name}] Logged out. Resetting session...`
                 );
+
                 await whatsapp.update({ status: "PENDING", session: "" });
                 await DeleteBaileysService(whatsapp.id);
+
                 io.to(`company-${whatsapp.companyId}-mainchannel`).emit(
                   `company-${whatsapp.companyId}-whatsappSession`,
                   { action: "update", session: whatsapp }
                 );
+
                 removeWbot(id, false);
                 setTimeout(
                   () => StartWhatsAppSession(whatsapp, whatsapp.companyId),
@@ -221,12 +253,14 @@ export const initWASocket = async (whatsapp: Whatsapp): Promise<Session> => {
 
               if (retriesQrCodeMap.get(id) && retriesQrCodeMap.get(id) >= 3) {
                 logger.error(
-                  `[Baileys][${name}] QR retries exceeded. Resetting session`
+                  `[Baileys][${name}] Too many QR retries — resetting`
                 );
+
                 await whatsappUpdate.update({
                   status: "DISCONNECTED",
                   qrcode: ""
                 });
+
                 await DeleteBaileysService(whatsappUpdate.id);
 
                 io.to(`company-${whatsapp.companyId}-mainchannel`).emit(
