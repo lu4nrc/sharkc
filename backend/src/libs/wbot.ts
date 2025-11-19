@@ -82,7 +82,6 @@ export const initWASocket = async (whatsapp: Whatsapp): Promise<Session> => {
         const isLegacy = provider === "stable" ? true : false;
 
         logger.info(`using WA v${version.join(".")}, isLatest: ${isLatest}`);
-        logger.info(`${version}`);
         logger.info(`isLegacy: ${isLegacy}`);
         logger.info(`Starting session ${name}`);
         let retriesQrCode = 0;
@@ -105,7 +104,10 @@ export const initWASocket = async (whatsapp: Whatsapp): Promise<Session> => {
             creds: state.creds,
             keys: makeCacheableSignalKeyStore(state.keys, logger)
           },
-          version: [2, 3000, 1025075656],
+          version,
+          // defaultQueryTimeoutMs: 60000,
+          // retryRequestDelayMs: 250,
+          // keepAliveIntervalMs: 1000 * 60 * 10 * 3,
           msgRetryCounterCache,
           shouldIgnoreJid: jid => isJidBroadcast(jid)
         });
