@@ -105,7 +105,7 @@ export const initWASocket = async (whatsapp: Whatsapp): Promise<Session> => {
             creds: state.creds,
             keys: makeCacheableSignalKeyStore(state.keys, logger)
           },
-          version: [2, 3000, 1029974494],
+          version: [2, 3000, 1025075656],
           msgRetryCounterCache,
           shouldIgnoreJid: jid => isJidBroadcast(jid)
         });
