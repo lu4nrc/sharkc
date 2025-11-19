@@ -494,7 +494,7 @@ const getContactMessage = async (msg: proto.IWebMessageInfo, wbot: Session) => {
     contact.remoteJid = msg.key.remoteJid;
     contact.number = msg.key.remoteJid.replace(/\D/g, "");
   }
-  console.log(contact);
+  //console.log(contact);
   return contact;
 };
 
