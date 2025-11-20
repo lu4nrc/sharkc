@@ -1,8 +1,4 @@
-import {
-  WASocket,
-  BinaryNode,
-  Contact as BContact,
-} from "baileys";
+import { WASocket, BinaryNode, Contact as BContact } from "whaileys";
 import * as Sentry from "@sentry/node";
 
 import { Op } from "sequelize";
@@ -37,33 +33,30 @@ const wbotMonitor = async (
 
       if (content.tag === "offer") {
         const { from, id } = node.attrs;
-
       }
 
       if (content.tag === "terminate") {
         const sendMsgCall = await Setting.findOne({
-          where: { key: "call", companyId },
+          where: { key: "call", companyId }
         });
 
         const translatedMessage = {
-          'pt': "*Mensagem Automática:*\n\nAs chamadas de voz e vídeo estão desabilitas para esse WhatsApp, favor enviar uma mensagem de texto. Obrigado",
-          'en': "*Automatic Message:*\n\nVoice and video calls are disabled for this WhatsApp, please send a text message. Thank you",
-          'es': "*Mensaje Automático:*\n\nLas llamadas de voz y video están deshabilitadas para este WhatsApp, por favor envía un mensaje de texto. Gracias"
-        }
+          pt: "*Mensagem Automática:*\n\nAs chamadas de voz e vídeo estão desabilitas para esse WhatsApp, favor enviar uma mensagem de texto. Obrigado",
+          en: "*Automatic Message:*\n\nVoice and video calls are disabled for this WhatsApp, please send a text message. Thank you",
+          es: "*Mensaje Automático:*\n\nLas llamadas de voz y video están deshabilitadas para este WhatsApp, por favor envía un mensaje de texto. Gracias"
+        };
 
         if (sendMsgCall.value === "disabled") {
-
           const company = await Company.findByPk(companyId);
 
           await wbot.sendMessage(node.attrs.from, {
-            text:
-              translatedMessage[company.language],
+            text: translatedMessage[company.language]
           });
 
           const number = node.attrs.from.replace(/\D/g, "");
 
           const contact = await Contact.findOne({
-            where: { companyId, number },
+            where: { companyId, number }
           });
 
           const ticket = await Ticket.findOne({
@@ -72,7 +65,7 @@ const wbotMonitor = async (
               whatsappId: wbot.id,
               //status: { [Op.or]: ["close"] },
               companyId
-            },
+            }
           });
           // se não existir o ticket não faz nada.
           if (!ticket) return;
@@ -91,17 +84,16 @@ const wbotMonitor = async (
             mediaType: "call_log",
             read: true,
             quotedMsgId: null,
-            ack: 1,
+            ack: 1
           };
 
           await ticket.update({
-            lastMessage: body,
+            lastMessage: body
           });
 
-
-          if(ticket.status === "closed") {
+          if (ticket.status === "closed") {
             await ticket.update({
-              status: "pending",
+              status: "pending"
             });
           }
 
@@ -111,13 +103,11 @@ const wbotMonitor = async (
     });
 
     wbot.ev.on("contacts.upsert", async (contacts: BContact[]) => {
-
       await createOrUpdateBaileysService({
         whatsappId: whatsapp.id,
-        contacts,
+        contacts
       });
     });
-
   } catch (err) {
     Sentry.captureException(err);
     logger.error(err);

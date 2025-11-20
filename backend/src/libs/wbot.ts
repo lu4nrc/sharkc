@@ -5,15 +5,14 @@ import makeWASocket, {
   DisconnectReason,
   fetchLatestBaileysVersion,
   makeCacheableSignalKeyStore,
-  isJidBroadcast,
-  CacheStore
-} from "baileys";
-import makeWALegacySocket from "baileys";
+  isJidBroadcast
+} from "whaileys";
+import makeWALegacySocket from "whaileys";
 import P from "pino";
 
 import Whatsapp from "../models/Whatsapp";
 import { logger } from "../utils/logger";
-import MAIN_LOGGER from "baileys/lib/Utils/logger";
+import MAIN_LOGGER from "whaileys/lib/Utils/logger";
 import authState from "../helpers/authState";
 import { Boom } from "@hapi/boom";
 import AppError from "../errors/AppError";
@@ -23,13 +22,14 @@ import { StartWhatsAppSession } from "../services/WbotServices/StartWhatsAppSess
 import DeleteBaileysService from "../services/BaileysServices/DeleteBaileysService";
 import NodeCache from "node-cache";
 
-// 🔥 Ativa debug extremo do Baileys
-process.env.DEBUG = "baileys*";
+//Ativa debug do Baileys
+// process.env.DEBUG = "baileys*";
 
-const loggerBaileys = MAIN_LOGGER.child({});
-loggerBaileys.level = "trace";
-logger.info("Baileys TRACE logger activated");
+// const loggerBaileys = MAIN_LOGGER.child({});
+// loggerBaileys.level = "trace";
+// logger.info("Baileys TRACE logger activated");
 
+//=====
 type Session = WASocket & {
   id?: number;
   store?: Store;
@@ -95,12 +95,12 @@ export const initWASocket = async (whatsapp: Whatsapp): Promise<Session> => {
         const { state, saveState } = await authState(whatsapp);
 
         const msgRetryCounterCache = new NodeCache();
-        const userDevicesCache: CacheStore = new NodeCache();
+        //const userDevicesCache: CacheStore = new NodeCache();
 
         logger.info(`Initializing WASocket for ${name}`);
 
         wsocket = makeWASocket({
-          logger: loggerBaileys,
+          //logger: loggerBaileys,
           printQRInTerminal: false,
           browser: Browsers.appropriate("Desktop"),
           auth: {
@@ -108,7 +108,7 @@ export const initWASocket = async (whatsapp: Whatsapp): Promise<Session> => {
             keys: makeCacheableSignalKeyStore(state.keys, logger)
           },
           version,
-          msgRetryCounterCache,
+          //msgRetryCounterCache,
           shouldIgnoreJid: jid => isJidBroadcast(jid)
         });
 

@@ -16,7 +16,7 @@ import {
   WAMessageStubType,
   WAMessageUpdate,
   WASocket
-} from "baileys";
+} from "whaileys";
 import Contact from "../../models/Contact";
 import Ticket from "../../models/Ticket";
 import Message from "../../models/Message";

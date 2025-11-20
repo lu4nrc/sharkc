@@ -1,4 +1,4 @@
-import { MessageUpsertType, proto, WASocket } from "baileys";
+import { MessageUpsertType, proto, WASocket } from "whaileys";
 import {
   convertTextToSpeechAndSaveToFile,
   getBodyMessage,
@@ -13,7 +13,7 @@ import { isNil, isNull } from "lodash";
 import fs from "fs";
 import path, { join } from "path";
 
-import OpenAI, {Configuration, OpenAIApi} from "openai";
+import OpenAI, { Configuration, OpenAIApi } from "openai";
 import Ticket from "../../models/Ticket";
 import Contact from "../../models/Contact";
 import Message from "../../models/Message";

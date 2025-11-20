@@ -1,4 +1,4 @@
-import { Chat, Contact } from "baileys";
+import { Chat, Contact } from "whaileys";
 import Baileys from "../../models/Baileys";
 import { isArray } from "lodash";
 

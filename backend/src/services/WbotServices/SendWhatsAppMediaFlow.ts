@@ -1,4 +1,4 @@
-import { WAMessage, AnyMessageContent, WAPresence } from "baileys";
+import { WAMessage, AnyMessageContent, WAPresence } from "whaileys";
 import * as Sentry from "@sentry/node";
 import fs from "fs";
 import { exec } from "child_process";
@@ -55,28 +55,32 @@ const processAudioFile = async (audio: string): Promise<string> => {
 };
 
 const nameFileDiscovery = (pathMedia: string) => {
-  const spliting = pathMedia.split('/')
-  const first = spliting[spliting.length - 1]
-  return first.split(".")[0]
-}
+  const spliting = pathMedia.split("/");
+  const first = spliting[spliting.length - 1];
+  return first.split(".")[0];
+};
 
-const delay = ms => new Promise(resolve => setTimeout(resolve, ms))
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 export const typeSimulation = async (ticket: Ticket, presence: WAPresence) => {
-
   const wbot = await GetTicketWbot(ticket);
 
   let contact = await Contact.findOne({
     where: {
-      id: ticket.contactId,
+      id: ticket.contactId
     }
   });
 
-  await wbot.sendPresenceUpdate(presence, `${contact.number}@${ticket.isGroup ? "g.us" : "s.whatsapp.net"}`);
+  await wbot.sendPresenceUpdate(
+    presence,
+    `${contact.number}@${ticket.isGroup ? "g.us" : "s.whatsapp.net"}`
+  );
   await delay(5000);
-  await wbot.sendPresenceUpdate('paused', `${contact.number}@${ticket.isGroup ? "g.us" : "s.whatsapp.net"}`);
-
-}
+  await wbot.sendPresenceUpdate(
+    "paused",
+    `${contact.number}@${ticket.isGroup ? "g.us" : "s.whatsapp.net"}`
+  );
+};
 
 const SendWhatsAppMediaFlow = async ({
   media,
@@ -88,19 +92,19 @@ const SendWhatsAppMediaFlow = async ({
   try {
     const wbot = await GetTicketWbot(ticket);
 
-    const mimetype = mime.lookup(media)
-    const pathMedia = media
+    const mimetype = mime.lookup(media);
+    const pathMedia = media;
 
     let typeMessage = "";
 
     if (typeof mimetype === "string") {
       typeMessage = mimetype.split("/")[0];
     }
-    const mediaName = nameFileDiscovery(media)
+    const mediaName = nameFileDiscovery(media);
 
     let options: AnyMessageContent;
 
-    if( mimetype ){
+    if (mimetype) {
       if (typeMessage === "video") {
         options = {
           video: fs.readFileSync(pathMedia),
@@ -109,7 +113,7 @@ const SendWhatsAppMediaFlow = async ({
           // gifPlayback: true
         };
       } else if (typeMessage === "audio") {
-        console.log('record', isRecord)
+        console.log("record", isRecord);
         if (isRecord) {
           const convert = await processAudio(pathMedia);
           options = {
@@ -149,7 +153,7 @@ const SendWhatsAppMediaFlow = async ({
 
     let contact = await Contact.findOne({
       where: {
-        id: ticket.contactId,
+        id: ticket.contactId
       }
     });
 
